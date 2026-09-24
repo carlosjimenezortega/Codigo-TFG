@@ -312,3 +312,59 @@ arrows(x0 = 0, y0 = 0, x1 = H_estrella_reescalado[,1], y1 = H_estrella_reescalad
 text(H_estrella_reescalado[,1] * 1.15, H_estrella_reescalado[,2] * 1.15, 
      labels = variables, col = "black", cex = 0.7, font = 2)
 dev.off()
+
+# ------------- ALGUNAS MUESTRAS VISUALES PARA EL CASO PRÁCTICO ----------------
+
+# Matriz de datos en bruto (5 primeros corredores, 3 primeras variables)
+X_tilde_5x3 <- X_tilde[1:5, 1:3]
+cat("\n Matriz en Bruto \n")
+print(xtable(X_tilde_5x3, digits = 3))
+
+# Medias de las 3 primeras variables
+medias_3 <- t(colMeans(X_tilde[, 1:3])) 
+rownames(medias_3) <- c("Media")
+cat("\n Vector de Medias \n")
+print(xtable(medias_3, digits = 3))
+
+# Matriz de datos centrada (5 primeros corredores, 3 primeras variables)
+X_5x3 <- X[1:5, 1:3]
+cat("\n Matriz Centrada \n")
+print(xtable(X_5x3, digits = 3))
+
+# Comprobación del cálculo de la varianza
+d1 <- d[1]
+l1 <- (d1^2) / (n - 1)
+cat("\n d1 y l1 \n")
+cat("d1 =", round(d1, 3), "\n")
+cat("l1 =", round(l1, 3), "\n")
+
+# Matriz U (5 primeros corredores, 2 primeras componentes)
+U_5x2 <- U[1:5, 1:2]
+cat("\n Matriz U (5x2) \n")
+print(xtable(U_5x2, digits = 3))
+
+# Matriz D (2 primeras componentes)
+D_2x2 <- diag(d[1:2])
+cat("\n Matriz D \n")
+print(xtable(D_2x2, digits = 3))
+
+# Matriz de puntuaciones Z (5 primeros corredores, 2 primeras componentes)
+Z_5x2 <- Z[1:5, 1:2]
+colnames(Z_5x2) <- c("CP1", "CP2")
+cat("\n Matriz Z \n")
+print(xtable(Z_5x2, digits = 3))
+
+# Reescalado del Biplot
+valor_factor_escala <- sqrt(n - 1)
+v_11 <- V[1, 1]
+d_1 <- d[1]
+h_11 <- v_11 * d_1
+h_11_reescalado <- h_11 / valor_factor_escala
+
+cat("\n Factor de reescalado del Biplot \n")
+cat("sqrt(n - 1) =", round(valor_factor_escala, 3), "\n")
+cat("v_1,1 =", round(v_11, 3), "\n")
+cat("d_1 =", round(d_1, 3), "\n")
+cat("h_1,1 bruto =", round(h_11, 3), "\n")
+cat("h_1,1 reescalado =", round(h_11_reescalado, 3), "\n")
+
