@@ -1,9 +1,12 @@
 #------------------------CARGAMOS LA IMAGEN---------------------------------
 
 # Cargamos las librerías necesarias
+install.packages(c("magick", "pdftools"))
 library(imager)
 library(rrcov)
 library(HDclassif)
+library(magick)
+library(pdftools)
 
 # Cargamos la imagen original
 img_original <- load.image("i4edit.jpg")
@@ -56,6 +59,22 @@ for (i in 1:num_bloques_ancho) {
   }
 }
 
+# Análisis dimensiones y canales
+cat("Dimensiones originales:", ancho_real, "x", alto_real, "\n")
+cat("Dimensiones ajustadas:", ancho_ajustado, "x", alto_ajustado, "\n")
+cat("Bloques ancho x alto:", num_bloques_ancho, "x", num_bloques_alto, "\n")
+
+media_R <- mean(X[, 1:64])
+media_G <- mean(X[, 65:128])
+media_B <- mean(X[, 129:192])
+sd_R <- sd(as.vector(X[, 1:64]))
+sd_G <- sd(as.vector(X[, 65:128]))
+sd_B <- sd(as.vector(X[, 129:192]))
+
+cat("Canal Rojo - Media:", round(media_R, 4), "SD:", round(sd_R, 4), "\n")
+cat("Canal Verde - Media:", round(media_G, 4), "SD:", round(sd_G, 4), "\n")
+cat("Canal Azul - Media:", round(media_B, 4), "SD:", round(sd_B, 4), "\n")
+
 #---------------------------LIMPIEZA DE RUIDO----------------------------------
 
 # Extraemos una muestra aleatoria
@@ -88,6 +107,82 @@ cuantil_z <- qnorm(0.975)
 umbral_teorico <- (media_estim + desv_estim * cuantil_z)^(3/2)
 outliers <- distancias_ortogonales > umbral_teorico
 cat("Se han detectado", sum(outliers), "bloques atípicos.\n")
+
+# Análisis limpieza
+cat("Tamaño de la submuestra:", nrow(X_muestra), "\n")
+cat("Autovalores robustos:", round(modelo_robusto@eigenvalues, 4), "\n")
+cat("Mediana (d^2/3):", round(media_estim, 4), "MAD (d^2/3):", round(desv_estim, 4), "\n")
+cat("Umbral Wilson-Hilferty:", round(umbral_teorico, 4), "\n")
+cat("Porcentaje de outliers:", round(mean(outliers) * 100, 2), "%\n")
+
+cat("Media R/G/B en bloques normales:",
+    round(mean(X[!outliers, 1:64]), 4),
+    round(mean(X[!outliers, 65:128]), 4),
+    round(mean(X[!outliers, 129:192]), 4), "\n")
+
+cat("Media R/G/B en bloques outliers:",
+    round(mean(X[outliers, 1:64]), 4),
+    round(mean(X[outliers, 65:128]), 4),
+    round(mean(X[outliers, 129:192]), 4), "\n")
+
+cat("Media R/G/B del centro robusto:",
+    round(mean(centro_robusto[1:64]), 4),
+    round(mean(centro_robusto[65:128]), 4),
+    round(mean(centro_robusto[129:192]), 4), "\n")
+
+# Gráfico outliers
+
+pdf("diagnostico_outliers.pdf", width = 7, height = 5)
+par(mar = c(4, 4, 3, 2))
+colores_pts <- ifelse(outliers, "red", "darkolivegreen4")
+pch_pts <- ifelse(outliers, 4, 16)
+plot(1:n, distancias_ortogonales,
+     col = colores_pts, pch = pch_pts, cex = 0.5,
+     xlab = "Índice del bloque (i)",
+     ylab = "Distancia ortogonal",
+     main = "Diagnóstico de Outliers")
+abline(h = umbral_teorico, col = "darkred", lwd = 2, lty = 2)
+legend("topright",
+       legend = c("Bloques normales", "Bloques atípicos", "Umbral crítico"),
+       col = c("darkolivegreen4", "red", "darkred"),
+       pch = c(16, 4, NA), lty = c(NA, NA, 2), lwd = c(NA, NA, 2),
+       cex = 0.85, bg = "white")
+dev.off()
+
+# Biplot robusto
+
+pdf("biplot_robusto.pdf", width = 7, height = 5)
+par(mar = c(4, 4, 3, 2))
+plot(puntuaciones[, 1], puntuaciones[, 2],
+     col = colores_pts, pch = pch_pts, cex = 0.45,
+     xlab = "CP1 Robusta", ylab = "CP2 Robusta",
+     main = "Biplot Robusto")
+abline(h = 0, v = 0, lty = 3, col = "gray60")
+
+flecha_R <- colMeans(pesos[1:64, 1:2])
+flecha_G <- colMeans(pesos[65:128, 1:2])
+flecha_B <- colMeans(pesos[129:192, 1:2])
+escala_flechas <- max(abs(puntuaciones[, 1:2])) * 9.5
+
+arrows(0, 0, flecha_R[1] * escala_flechas, flecha_R[2] * escala_flechas,
+       col = "darkred", lwd = 2, length = 0.1)
+arrows(0, 0, flecha_G[1] * escala_flechas, flecha_G[2] * escala_flechas,
+       col = "darkgreen", lwd = 2, length = 0.1)
+arrows(0, 0, flecha_B[1] * escala_flechas, flecha_B[2] * escala_flechas,
+       col = "darkblue", lwd = 2, length = 0.1)
+
+text(flecha_R[1] * escala_flechas * 1.12, flecha_R[2] * escala_flechas * 1.12,
+     "Canal R", col = "darkred", cex = 0.85, font = 2)
+text(flecha_G[1] * escala_flechas * 1.12, flecha_G[2] * escala_flechas * 1.12,
+     "Canal G", col = "darkgreen", cex = 0.85, font = 2)
+text(flecha_B[1] * escala_flechas * 1.12, flecha_B[2] * escala_flechas * 1.12,
+     "Canal B", col = "darkblue", cex = 0.85, font = 2)
+
+legend("topright",
+       legend = c("Bloques normales", "Bloques atípicos"),
+       col = c("darkolivegreen4", "red"),
+       pch = c(16, 4), cex = 0.85, bg = "white")
+dev.off()
 
 # Limpiamos tales bloques
 X_limpio <- X
@@ -128,6 +223,15 @@ modelo_mppca <- hddc(X_limpio, K = 3)
 
 # Extraemos la clasificación final
 clases_bloques <- modelo_mppca$class
+
+# Análisis clases
+tabla_clases <- table(clases_bloques)
+prop_clases <- prop.table(tabla_clases) * 100
+
+cat("Bloques por clase (1, 2, 3):", as.numeric(tabla_clases), "\n")
+cat("Porcentaje por clase (1, 2, 3):", round(as.numeric(prop_clases), 2), "\n")
+cat("Total deforestado (Clases 1 + 2):", round(sum(prop_clases[1:2]), 2), "%\n")
+cat("Total selva densa (Clase 3):", round(prop_clases[3], 2), "%\n")
 
 # Reconstruimos con la segmentación 
 # Tenemos 3 clases, pintamos una de verde pino y dos de verde césped
